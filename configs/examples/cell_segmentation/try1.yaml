@@ -1,0 +1,176 @@
+# Example configuration for HoverNet-Cell-Segmentation
+
+# comment and project setup for wandb
+logging:
+  mode:         "online"            # "online" or "offline" [str]
+  project:         "cell_segementation"         # Name of project to use [str]
+  notes:   "cellvit-dinov3-h"                 # Notes about the run, verbose description [str]
+  log_comment:      "cellvit-dinov3-h"        # Comment to add to name the local logging folder [str]
+  tags:                     # List of tags, e.g., ["baseline", "run1"] [str]
+    - "Fold-1"
+    - "dinov3-h"
+    - "x20"
+  wandb_dir:      "./logs_paper"          # Direcotry to store the wandb file. CAREFUL: Directory must exists [str]
+  log_dir:     "./logs_paper"             # Direcotry to store all logging related files and outputs [str]
+  level:      "debug"              # Level of logging must be either ["critical", "error", "warning", "info", "debug"] [str]
+  log_images:      True         # If images should be logged to WandB for this run. [bool] [Optional, defaults to False]
+  group:        None          # WandB group tag [str] [Optional, defaults to None]
+
+# seeding
+random_seed: 19             # Seed for numpy, pytorch etc. [int]
+
+# hardware
+gpu:         [0,1]              # Number of GPU to run experiment on [int]
+
+# setting paths and dataset
+data: 
+  dataset: pannuke                 # Name of dataset, currently supported: PanNuke, Conic. Select your dataset and the script will autoamtically select the corresponding experiment [str]
+  dataset_path:       "./example/try"      # Path to dataset, compare ./docs/readmes/pannuke.md for further details [str]
+  train_folds:  [0]       # List of fold Numbers to use for training [list[int]]
+#  val_split:                # Percentage of training set that should be used for validation. Either val_split or val_fold must be provided, not both. [float]
+  val_folds:  [2]        # List of fold Numbers to use for validation [list[int]]
+  test_folds:   [1]      # List of fold Numbers to use for final testing [list[int]]
+  num_nuclei_classes:    6   # Number of different nuclei classes (including background!, e.g. 5 nuclei classes + background = 6) [int]
+  num_tissue_classes:    19
+  input_shape:       256       # Input shape of data. [int] [Optional, defaults to 256]
+
+# model options
+model:
+  backbone:       "dinov3-b"          # Backbone Type: Options are: default, ViT256, SAM-B, SAM-L, SAM-H, dinov3-s
+  pretrained_encoder:     "./models/pretrained/vits16.pth"    # Set path to a pretrained encoder [str]
+  pretrained:             # Path to a pretrained model (.pt file) [str, default None]
+  embed_dim:     1280           # Embedding dimension for ViT - typical values are 384 (ViT-S), 768 (ViT-B), 1024 (ViT-L), 1280 (ViT-H) [int]
+  input_channels:       3    # Number of input channels, usually 3 for RGB [int, default 3]
+  depth:        12            # Number of Transformer Blocks to use - typical values are 12 (ViT-S), 12 (ViT-B), 24 (ViT-L), 32 (ViT-H) [int]
+  num_heads:      6          # Number of attention heads for MHA - typical values are 6 (ViT-S), 12 (ViT-B), 16 (ViT-L), 16 (ViT-H) [int]
+  extract_layers:     [3,6,9]      # List of layers to extract for skip connections - starting from 1 with a maximum value equals the depth [int]
+  shared_decoders:      False    # If decoder networks should be shared except for the heads. [bool] [Optional, defaults to False]
+  regression_loss:   True       # If regression loss should be used for binary prediction head. [bool] [Optional, defaults to False]
+
+# loss function settings (best shown by an example). See all implemented loss functions in base_ml.base_loss module
+loss:
+  nuclei_binary_map:
+    focaltverskyloss:
+      loss_fn: FocalTverskyLoss
+      weight: 1
+    dice:
+      loss_fn: dice_loss
+      weight: 1
+  hv_map:
+    mse:
+      loss_fn: mse_loss_maps
+      weight: 2.5
+    msge:
+      loss_fn: msge_loss_maps
+      weight: 8
+  nuclei_type_map:
+    bce:
+      loss_fn: xentropy_loss
+      weight: 0.5
+    dice:
+      loss_fn: dice_loss
+      weight: 0.2
+    mcfocaltverskyloss:
+      loss_fn: MCFocalTverskyLoss
+      weight: 0.5
+      args:
+        num_classes: 6
+  tissue_types:
+    ce:
+      loss_fn: CrossEntropyLoss
+      weight: 0.1
+
+
+# training options
+training:
+  drop_rate: 0
+  attn_drop_rate: 0.1
+  drop_path_rate: 0.1
+  batch_size: 16
+  epochs: 100
+  optimizer: AdamW
+  early_stopping_patience: 100
+  scheduler:
+    scheduler_type: exponential
+    hyperparameters:
+      gamma: 0.85
+  optimizer_hyperparameter:
+    betas:
+    - 0.85
+    - 0.95
+    lr: 0.0003
+    weight_decay: 0.0001
+  unfreeze_epoch: 25
+  sampling_gamma: 0.85
+  sampling_strategy: cell+tissue
+  mixed_precision: true
+transformations:
+  randomrotate90:
+    p: 0.5
+  horizontalflip:
+    p: 0.5
+  verticalflip:
+    p: 0.5
+  downscale:
+    p: 0.15
+    scale: 0.5
+  blur:
+    p: 0.2
+    blur_limit: 10
+  gaussnoise:
+    p: 0.25
+    var_limit: 50
+  colorjitter:
+    p: 0.2
+    scale_setting: 0.25
+    scale_color: 0.1
+  superpixels:
+    p: 0.1
+  zoomblur:
+    p: 0.1
+  randomsizedcrop:
+    p: 0.1
+  elastictransform:
+    p: 0.2
+  normalize:
+    mean:
+    - 0.5
+    - 0.5
+    - 0.5
+    std:
+    - 0.5
+    - 0.5
+    - 0.5
+eval_checkpoint: latest_checkpoint.pth
+run_sweep: false
+agent: null
+dataset_config:
+  tissue_types:
+    Adrenal_gland: 0
+    Bile-duct: 1
+    Bladder: 2
+    Breast: 3
+    Cervix: 4
+    Colon: 5
+    Esophagus: 6
+    HeadNeck: 7
+    Kidney: 8
+    Liver: 9
+    Lung: 10
+    Ovarian: 11
+    Pancreatic: 12
+    Prostate: 13
+    Skin: 14
+    Stomach: 15
+    Testis: 16
+    Thyroid: 17
+    Uterus: 18
+  nuclei_types:
+    Background: 0
+    Neoplastic: 1
+    Inflammatory: 2
+    Connective: 3
+    Dead: 4
+    Epithelial: 5
+
+
