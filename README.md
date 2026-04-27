@@ -17,8 +17,7 @@ On the PanNuke dataset, the configuration shipped in `./configs/examples/cell_se
 Clone the repository and create the conda environment:
 
 ```bash
-git clone <your-repo-url>
-cd <repo-root>
+git clone https://github.com/lyujiandao/Ziji_Lyu_20513276_fyp.git
 
 conda env create -f environment.yml
 conda activate <env-name>     # the environment name is set inside environment.yml
